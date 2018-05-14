@@ -20,6 +20,7 @@ pkg_apt = {
 
 downloads = {
     '/tmp/check-mk-agent_{}_all.deb'.format(CHECK_MK_AGENT_VERSION): {
+        # TODO: make dynamic .. url
         'url': 'https://monitoring.leela.ultrachaos.de/prod/check_mk/agents/check-mk-agent_1.5.0b1-1_all.deb',
         'sha256': 'af23d928e3aadc23382846e728effc6d93d14f9e76639d0833143216cafd125c',
         'unless': 'dpkg -l | grep check-mk-agent | grep -q {version}'.format(version=CHECK_MK_AGENT_VERSION)
