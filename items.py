@@ -1,7 +1,14 @@
-
+from bundlewrap.exceptions import BundleError
 
 check_mk_config = node.metadata.get('check_mk', {})
-check_mk_server = repo.get_node(check_mk_config.get('server', ''))
+
+check_mk_servers = check_mk_config.get('servers', [])
+
+if not check_mk_servers:
+    raise BundleError("No Check_mk servers defined for node {node}".format(node=node.name))
+
+# only use first
+check_mk_server = repo.get_node(check_mk_servers[0])
 
 if check_mk_server.metadata.get('check_mk', {}).get('beta', False):
     CHECK_MK_AGENT_VERSION = '1.5.0b3-1'
@@ -24,6 +31,8 @@ pkg_apt = {
     }
 }
 
+directories = {}
+
 downloads = {
     '/tmp/check-mk-agent_{}_all.deb'.format(CHECK_MK_AGENT_VERSION): {
         'url': 'https://{server}/{site}/check_mk/agents/check-mk-agent_{version}_all.deb'.format(
@@ -36,7 +45,6 @@ downloads = {
         'unless': 'dpkg -l | grep check-mk-agent | grep -q {version}'.format(version=CHECK_MK_AGENT_VERSION)
     }
 }
-
 actions = {
     'install_check_mk_agent': {
         'command': 'dpkg -i /tmp/check-mk-agent_{}_all.deb'.format(CHECK_MK_AGENT_VERSION),
@@ -46,6 +54,31 @@ actions = {
         ]
     }
 }
+
+if node.os == 'debian':
+    directories['/usr/lib/check_mk_agent/plugins/3600'] = {
+        'mode': '755',
+        'owner': 'root',
+        'group': 'root',
+    }
+    downloads['/usr/lib/check_mk_agent/plugins/3600/mk_apt'] = {
+        'url': 'https://{server}/{site}/check_mk/agents/plugins/mk_apt'.format(
+            server=check_mk_server.hostname,
+            site=list(check_mk_server.metadata.get('check_mk', {}).get('sites', {}).keys())[0],
+        ),
+        'verifySSL': False,
+        'sha256': "d9d9865087b1ae20ba4bd45446db84a96d378c555af687d934886219f31fecb0",
+        'needs': [
+            'directory:/usr/lib/check_mk_agent/plugins/3600',
+            'action:install_check_mk_agent'
+        ],
+        'triggers': ['action:mk_apt_make_exec']
+    }
+    actions['mk_apt_make_exec'] = {
+        'command': 'chmod +x /usr/lib/check_mk_agent/plugins/3600/mk_apt',
+        'triggered': True,
+    }
+
 
 files = {
     '/etc/xinetd.d/check_mk': {
