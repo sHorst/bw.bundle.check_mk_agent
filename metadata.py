@@ -27,7 +27,6 @@ def monitored_by_server(check_mk_server):
 @metadata_processor
 def add_iptables_rules(metadata):
     metadata.setdefault('check_mk', {})
-    metadata['check_mk'].setdefault('tags', [])
 
     check_mk_servers = []
     for check_mk_server in sorted(repo.nodes, key=lambda x: x.name):
@@ -56,7 +55,6 @@ def add_iptables_rules(metadata):
 
     metadata['check_mk']['servers'] = [x.name for x in check_mk_servers]
     metadata['check_mk']['server_ips'] = list(dict.fromkeys(check_mk_server_ips))
-    metadata['check_mk']['tags'] += ['cmk-agent', ]
 
     if node.has_bundle("iptables"):
         for interface in interfaces:
@@ -67,5 +65,14 @@ def add_iptables_rules(metadata):
                     tcp(). \
                     source(ip). \
                     dest_port(metadata['check_mk'].get('port', 6556))
+
+    return metadata, DONE
+
+
+@metadata_processor
+def add_check_mk_tags(metadata):
+    metadata.setdefault('check_mk', {})
+    metadata['check_mk'].setdefault('tags', [])
+    metadata['check_mk']['tags'] += ['cmk-agent', ]
 
     return metadata, DONE
