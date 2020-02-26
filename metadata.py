@@ -72,7 +72,7 @@ def add_iptables_rules(metadata):
 @metadata_processor
 def add_check_mk_tags(metadata):
     metadata.setdefault('check_mk', {})
-    metadata['check_mk'].setdefault('tags', [])
-    metadata['check_mk']['tags'] += ['cmk-agent', ]
+    metadata['check_mk'].setdefault('tags', {})
+    metadata['check_mk']['tags']['agent'] = 'cmk-agent'
 
     return metadata, DONE
