@@ -1,3 +1,12 @@
+defaults = {
+    'check_mk': {
+        'tags': {
+            'agent': 'cmk-agent',
+        }
+    }
+}
+
+
 def monitored_by_server(check_mk_server):
     for site, site_config in check_mk_server.partial_metadata.get('check_mk', {}).get('sites', {}).items():
         for folder, folder_config in site_config.get('folders').items():
@@ -24,17 +33,15 @@ def monitored_by_server(check_mk_server):
     return False
 
 
-@metadata_processor
+@metadata_reactor
 def add_iptables_rules(metadata):
-    metadata.setdefault('check_mk', {})
-
     check_mk_servers = []
     for check_mk_server in sorted(repo.nodes, key=lambda x: x.name):
         if not check_mk_server.has_bundle('check_mk'):
             continue
 
         if check_mk_server.partial_metadata == {}:
-            return metadata, RUN_ME_AGAIN
+            return {}
 
         if not monitored_by_server(check_mk_server):
             continue
@@ -43,7 +50,7 @@ def add_iptables_rules(metadata):
 
     check_mk_server_ips = []
     interfaces = [metadata.get('main_interface'), ]
-    interfaces += metadata['check_mk'].get('additional_interfaces', [])
+    interfaces += metadata.get('check_mk/additional_interfaces', [])
 
     for check_mk_server in check_mk_servers:
         for interface, interface_config in check_mk_server.partial_metadata.get('interfaces', {}).items():
@@ -53,26 +60,21 @@ def add_iptables_rules(metadata):
             check_mk_server_ips += interface_config.get('ip_addresses', [])
             check_mk_server_ips += interface_config.get('ipv6_addresses', [])
 
-    metadata['check_mk']['servers'] = [x.name for x in check_mk_servers]
-    metadata['check_mk']['server_ips'] = list(dict.fromkeys(check_mk_server_ips))
+    meta_checkmk = {
+        'check_mk': {
+            'servers': [x.name for x in check_mk_servers],
+            'server_ips': list(dict.fromkeys(check_mk_server_ips))
+        }
+    }
 
     if node.has_bundle("iptables"):
         for interface in interfaces:
             for ip in check_mk_server_ips:
-                metadata += repo.libs.iptables.accept(). \
+                meta_checkmk += repo.libs.iptables.accept(). \
                     input(interface). \
                     state_new(). \
                     tcp(). \
                     source(ip). \
-                    dest_port(metadata['check_mk'].get('port', 6556))
+                    dest_port(metadata.get('check_mk/port', 6556))
 
-    return metadata, DONE
-
-
-@metadata_processor
-def add_check_mk_tags(metadata):
-    metadata.setdefault('check_mk', {})
-    metadata['check_mk'].setdefault('tags', {})
-    metadata['check_mk']['tags']['agent'] = 'cmk-agent'
-
-    return metadata, DONE
+    return meta_checkmk
