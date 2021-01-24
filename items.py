@@ -4,6 +4,7 @@ supported_versions = {
     '1.4.0p31': 'fb3aacd46e79b15acef947fb390ca678b4f9ad1a1165db4ba0bcff7e5800e51f',
     '1.5.0b3': 'd14b2ef6babcc9f5b36968661cf3106acdcc667f21d954a34adf870d50ceb43c',
     '1.6.0p9': 'c1b5fea31973abb2ecd4795afd87f209cc261d3d78d392495b3c6ffe4f1577a5',
+    '1.6.0p20': '05442e29843f77cd41d8905e852803997303b5a59a86cefc2a0398576f974ef7',
 }
 
 check_mk_config = node.metadata.get('check_mk', {})
