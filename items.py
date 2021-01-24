@@ -21,13 +21,7 @@ check_mk_server_config = check_mk_server.metadata.get('check_mk', {})
 CHECK_MK_AGENT_VERSION = check_mk_server_config.get('version', '1.6.0p9')
 
 if CHECK_MK_AGENT_VERSION not in supported_versions.keys():
-    raise BundleError(_(
-        "unsupported Agent version {version} for {item} in bundle '{bundle}'"
-    ).format(
-        version=CHECK_MK_AGENT_VERSION,
-        bundle=bundle.name,
-        item=item_id,
-    ))
+    raise BundleError(f"unsupported Agent version {CHECK_MK_AGENT_VERSION}")
 
 CHECK_MK_AGENT_SHA256 = supported_versions[CHECK_MK_AGENT_VERSION]
 
@@ -36,12 +30,6 @@ svc_systemd = {
         'needs': [
             'pkg_apt:xinetd'
         ]
-    }
-}
-
-pkg_apt = {
-    'xinetd': {
-        'installed': True,
     }
 }
 
@@ -86,13 +74,8 @@ if node.os == 'debian':
             'directory:/usr/lib/check_mk_agent/plugins/3600',
             'action:install_check_mk_agent'
         ],
-        'triggers': ['action:mk_apt_make_exec']
+        'mode': '0755',
     }
-    actions['mk_apt_make_exec'] = {
-        'command': 'chmod +x /usr/lib/check_mk_agent/plugins/3600/mk_apt',
-        'triggered': True,
-    }
-
 
 files = {
     '/etc/xinetd.d/check_mk': {

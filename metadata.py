@@ -3,8 +3,15 @@ defaults = {
         'tags': {
             'agent': 'cmk-agent',
         }
-    }
+    },
 }
+
+if node.has_bundle("apt"):
+    defaults['apt'] = {
+        'packages': {
+            'xinetd': {'installed': True, },
+        }
+    }
 
 
 def monitored_by_server(check_mk_server):
