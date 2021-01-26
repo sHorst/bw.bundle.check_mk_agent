@@ -58,25 +58,37 @@ actions = {
     }
 }
 
-if node.os == 'debian':
-    directories['/usr/lib/check_mk_agent/plugins/3600'] = {
+# install plugins
+for plugin_name, plugin in node.metadata.get('check_mk', {}).get('plugins', {}).items():
+    plugin_type = plugin.get('type', None)
+    plugin_time = plugin.get('run_every', 300)  # default run every 5 min
+
+    # create Directory, if not exists
+    # it will not collide, since i assume, that only this bundle will work in this directory
+    directories[f'/usr/lib/check_mk_agent/plugins/{plugin_time}'] = {
         'mode': '755',
         'owner': 'root',
         'group': 'root',
     }
-    downloads['/usr/lib/check_mk_agent/plugins/3600/mk_apt'] = {
-        'url': 'https://{server}/{site}/check_mk/agents/plugins/mk_apt'.format(
-            server=check_mk_server.hostname,
-            site=list(check_mk_server.metadata.get('check_mk', {}).get('sites', {}).keys())[0],
-        ),
-        'verifySSL': False,
-        'sha256': "d9d9865087b1ae20ba4bd45446db84a96d378c555af687d934886219f31fecb0",
-        'needs': [
-            'directory:/usr/lib/check_mk_agent/plugins/3600',
-            'action:install_check_mk_agent'
-        ],
-        'mode': '0755',
-    }
+
+    if plugin_type == 'check_mk_plugin':
+        # Download from Monitoring Server. We assume the Plugin is available there
+        downloads[f'/usr/lib/check_mk_agent/plugins/{plugin_time}/{plugin_name}'] = {
+            'url': 'https://{server}/{site}/check_mk/agents/plugins/{plugin_name}'.format(
+                server=check_mk_server.hostname,
+                site=list(check_mk_server.metadata.get('check_mk', {}).get('sites', {}).keys())[0],
+                plugin_name=plugin_name,
+            ),
+            'verifySSL': False,
+            'sha256': plugin['sha256'],  # This is needed, and will break, if not set
+            'needs': [
+                f'directory:/usr/lib/check_mk_agent/plugins/{plugin_time}',
+                'action:install_check_mk_agent'
+            ],
+            'mode': '0755',  # make Executable
+        }
+    else:
+        print(f'unknown Plugin Type {plugin_type} for plugin {plugin_name}')
 
 files = {
     '/etc/xinetd.d/check_mk': {
