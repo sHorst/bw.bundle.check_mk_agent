@@ -6,13 +6,6 @@ defaults = {
     },
 }
 
-if node.has_bundle("apt"):
-    defaults['apt'] = {
-        'packages': {
-            'xinetd': {'installed': True, },
-        }
-    }
-
 
 def monitored_by_server(check_mk_server):
     for site, site_config in check_mk_server.partial_metadata.get('check_mk', {}).get('sites', {}).items():

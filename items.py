@@ -8,7 +8,6 @@ supported_versions = {
 }
 
 check_mk_config = node.metadata.get('check_mk', {})
-
 check_mk_servers = check_mk_config.get('servers', [])
 
 if not check_mk_servers:
@@ -27,13 +26,14 @@ if CHECK_MK_AGENT_VERSION not in supported_versions.keys():
 CHECK_MK_AGENT_SHA256 = supported_versions[CHECK_MK_AGENT_VERSION]
 
 svc_systemd = {
-    'xinetd': {
+    'check_mk.socket': {
         'needs': [
-            'pkg_apt:xinetd'
-        ]
+            'action:install_check_mk_agent',
+        ],
     }
 }
 
+files = {}
 directories = {}
 
 downloads = {
@@ -52,9 +52,10 @@ actions = {
     'install_check_mk_agent': {
         'command': 'dpkg -i /tmp/check-mk-agent_{}-1_all.deb'.format(CHECK_MK_AGENT_VERSION),
         'unless': 'dpkg -l | grep check-mk-agent | grep -q {version}'.format(version=CHECK_MK_AGENT_VERSION),
+        'cascade_skip': False,
         'needs': [
             'download:/tmp/check-mk-agent_{}-1_all.deb'.format(CHECK_MK_AGENT_VERSION),
-        ]
+        ],
     }
 }
 
@@ -90,23 +91,11 @@ for plugin_name, plugin in node.metadata.get('check_mk', {}).get('plugins', {}).
     else:
         print(f'unknown Plugin Type {plugin_type} for plugin {plugin_name}')
 
-files = {
-    '/etc/xinetd.d/check_mk': {
-        'content_type': 'jinja2',
-        'owner': 'root',
-        'group': 'root',
-        'mode': '0644',
-        'context': {
-            'ips': ' '.join(sorted(check_mk_config.get('server_ips', []))),
-            'port': check_mk_config.get('port', 6556),
-        },
-        'needs': [
-            'pkg_apt:xinetd',
-            'action:install_check_mk_agent',
-        ],
+if node.has_bundle('xinetd'):
+    # we do not need this file anymore, since systemd will provide the service
+    files['/etc/xinetd.d/check_mk'] = {
+        'delete': True,
         'triggers': [
-            'svc_systemd:xinetd:restart',
+            'svc_systemd:xinetd.service:restart',
         ]
-
     }
-}
