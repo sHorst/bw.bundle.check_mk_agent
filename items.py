@@ -1,4 +1,4 @@
-from bundlewrap.exceptions import BundleError
+from bundlewrap.exceptions import BundleError, NoSuchNode
 
 supported_versions = {
     '1.4.0p31': 'fb3aacd46e79b15acef947fb390ca678b4f9ad1a1165db4ba0bcff7e5800e51f',
@@ -98,4 +98,27 @@ if node.has_bundle('xinetd'):
         'triggers': [
             'svc_systemd:xinetd.service:restart',
         ]
+    }
+
+# load piggybag file from restic_server
+if node.has_bundle('check_mk') and node.has_bundle('restic'):
+    cron = [
+        '# !/usr/bin/env bash',
+        ]
+
+    for backup_host, backup_host_config in node.metadata.get('restic', {}).get('backup_hosts', {}).items():
+        try:
+            backup_node = repo.get_node(backup_host)
+            backup_host = backup_node.hostname
+        except NoSuchNode:
+            pass
+
+        cron += [
+            # ignore, if file does not exists
+            f'scp {backup_host}:piggy_restic /var/lib/check_mk_agent/spool/piggy_restic_{backup_host} >/dev/null 2>/dev/null || true',
+        ]
+
+    files['/etc/cron.hourly/check_mk_agent_get_restic_piggy'] = {
+        'content': '\n'.join(cron) + '\n',
+        'mode': '0755',
     }
