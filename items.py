@@ -103,7 +103,7 @@ if node.has_bundle('xinetd'):
 # load piggybag file from restic_server
 if node.has_bundle('check_mk') and node.has_bundle('restic'):
     cron = [
-        '# !/usr/bin/env bash',
+        '#!/usr/bin/env bash',
         ]
 
     for backup_host, backup_host_config in node.metadata.get('restic', {}).get('backup_hosts', {}).items():
