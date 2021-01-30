@@ -106,19 +106,50 @@ if node.has_bundle('check_mk') and node.has_bundle('restic'):
         '#!/usr/bin/env bash',
         ]
 
-    for backup_host, backup_host_config in node.metadata.get('restic', {}).get('backup_hosts', {}).items():
+    for backup_hostname, backup_host_config in node.metadata.get('restic', {}).get('backup_hosts', {}).items():
+        backup_nodename = backup_hostname
         try:
-            backup_node = repo.get_node(backup_host)
-            backup_host = backup_node.hostname
+            backup_node = repo.get_node(backup_hostname)
+            backup_hostname = backup_node.hostname
         except NoSuchNode:
             pass
 
-        cron += [
-            # ignore, if file does not exists
-            f'scp {backup_host}:piggy_restic /var/lib/check_mk_agent/spool/piggy_restic_{backup_host} >/dev/null 2>/dev/null || true',
-        ]
+        piggy_file = f'/var/lib/check_mk_agent/spool/piggy_restic_{backup_hostname}'
+        if backup_host_config.get('external', False):
+            # generate piggy localy
+            cron += [
+                f'echo "" > {piggy_file}',
+            ]
+
+            clients = {}
+            for restic_node in sorted(repo.nodes, key=lambda x: x.name):
+                if restic_node.metadata.get('restic', {}).get('backup_hosts', {}).get(backup_nodename, None) is None:
+                    continue
+                clients[restic_node.name] = restic_node.hostname
+
+            for client_nodename, client_hostname in clients.items():
+                cron += [
+                    f'echo "<<<<{client_hostname}>>>>" >> {piggy_file}',
+                    f'echo "<<<local>>>" >> {piggy_file}',
+                    f'/opt/restic/restic_last_change_remote.sh {backup_hostname} {client_nodename} >> {piggy_file}',
+                ]
+
+            cron += [
+                f'echo "<<<<>>>>" >> {piggy_file}',
+            ]
+        else:
+            cron += [
+                # ignore, if file does not exists
+                f'scp {backup_hostname}:piggy_restic {piggy_file}'
+                f' >/dev/null 2>/dev/null || true',
+            ]
 
     files['/etc/cron.hourly/check_mk_agent_get_restic_piggy'] = {
         'content': '\n'.join(cron) + '\n',
+        'mode': '0755',
+    }
+
+    # generate piggy file on remote server, which we do not control
+    files['/opt/restic/restic_last_change_remote.sh'] = {
         'mode': '0755',
     }
