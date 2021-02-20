@@ -51,7 +51,8 @@ downloads = {
 actions = {
     'install_check_mk_agent': {
         'command': 'dpkg -i /tmp/check-mk-agent_{}-1_all.deb'.format(CHECK_MK_AGENT_VERSION),
-        'unless': 'dpkg -l | grep check-mk-agent | grep -q {version}'.format(version=CHECK_MK_AGENT_VERSION),
+        'unless': 'test ! -f /tmp/check-mk-agent_{version}-1_all.deb || '
+                  'dpkg -l | grep check-mk-agent | grep -q {version}'.format(version=CHECK_MK_AGENT_VERSION),
         'cascade_skip': False,
         'needs': [
             'download:/tmp/check-mk-agent_{}-1_all.deb'.format(CHECK_MK_AGENT_VERSION),
