@@ -34,7 +34,7 @@ def monitored_by_server(check_mk_server):
 
 
 @metadata_reactor
-def add_iptables_rules(metadata):
+def add_check_mk_server_data_and_iptables_rules(metadata):
     check_mk_servers = []
     for check_mk_server in sorted(repo.nodes, key=lambda x: x.name):
         if not check_mk_server.has_bundle('check_mk'):
@@ -52,7 +52,10 @@ def add_iptables_rules(metadata):
     interfaces = [metadata.get('main_interface'), ]
     interfaces += metadata.get('check_mk/additional_interfaces', [])
 
+    check_mk_version = None
     for check_mk_server in check_mk_servers:
+        if check_mk_version is None:
+            check_mk_version = check_mk_server.partial_metadata.get('check_mk', {}).get('version', '1.6.0p9')
         for interface, interface_config in check_mk_server.partial_metadata.get('interfaces', {}).items():
             if interface not in interfaces and interface != check_mk_server.partial_metadata.get('main_interface'):
                 continue
@@ -62,6 +65,8 @@ def add_iptables_rules(metadata):
 
     meta_checkmk = {
         'check_mk': {
+            # this is only the version of the first
+            'server_version': check_mk_version,
             'servers': [x.name for x in check_mk_servers],
             'server_ips': list(dict.fromkeys(check_mk_server_ips))
         }
