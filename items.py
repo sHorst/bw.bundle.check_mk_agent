@@ -1,4 +1,5 @@
 from bundlewrap.exceptions import BundleError, NoSuchNode
+global node, repo
 
 supported_versions = {
     '1.4.0p31': 'fb3aacd46e79b15acef947fb390ca678b4f9ad1a1165db4ba0bcff7e5800e51f',
@@ -143,7 +144,7 @@ if node.has_bundle('check_mk') and node.has_bundle('restic'):
         else:
             cron += [
                 # ignore, if file does not exists
-                f'scp {backup_hostname}:piggy_restic {piggy_file}'
+                f'rsync -a {backup_hostname}:piggy_restic {piggy_file}'
                 f' >/dev/null 2>/dev/null || true',
             ]
 
