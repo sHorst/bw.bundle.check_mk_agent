@@ -24,19 +24,32 @@ check_mk_server_config = check_mk_server.metadata.get('check_mk', {})
 
 
 CHECK_MK_AGENT_VERSION = check_mk_server_config.get('version', '1.6.0p9')
+CHECK_MK_AGENT_MAJOR_VERSION = int(CHECK_MK_AGENT_VERSION.split('.')[0])
+CHECK_MK_AGENT_MINOR_VERSION = int(CHECK_MK_AGENT_VERSION.split('.')[1])
 
 if CHECK_MK_AGENT_VERSION not in supported_versions.keys():
     raise BundleError(f"unsupported Agent version {CHECK_MK_AGENT_VERSION}")
 
 CHECK_MK_AGENT_SHA256 = supported_versions[CHECK_MK_AGENT_VERSION]
 
-svc_systemd = {
-    'check_mk.socket': {
-        'needs': [
-            'action:install_check_mk_agent',
-        ],
+if (CHECK_MK_AGENT_MAJOR_VERSION == 2 and CHECK_MK_AGENT_MINOR_VERSION >= 2) or CHECK_MK_AGENT_MAJOR_VERSION > 2:
+    svc_systemd = {
+        'check-mk-agent.socket': {
+            'needs': [
+                'action:install_check_mk_agent',
+            ],
+        }
     }
-}
+
+else:
+    svc_systemd = {
+        'check_mk.socket': {
+            'needs': [
+                'action:install_check_mk_agent',
+            ],
+        }
+    }
+
 
 files = {}
 directories = {}
