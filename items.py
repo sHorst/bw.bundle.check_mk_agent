@@ -14,16 +14,19 @@ supported_versions = {
 
 check_mk_config = node.metadata.get('check_mk', {})
 check_mk_servers = check_mk_config.get('servers', [])
+check_mk_servers_site = check_mk_config.get('servers_site', {})
 
 if not check_mk_servers:
     raise BundleError("No Check_mk servers defined for node {node}".format(node=node.name))
 
 # only use first
-check_mk_server = repo.get_node(check_mk_servers[0])
-check_mk_server_config = check_mk_server.metadata.get('check_mk', {})
+first_check_mk_server = repo.get_node(check_mk_servers[0])
+first_check_mk_server_config = first_check_mk_server.metadata.get('check_mk', {})
+first_check_mk_server_site = check_mk_servers_site.get(first_check_mk_server.name)  # fail if there is no site
 
+first_check_mk_server_base_url = f'https://{first_check_mk_server.hostname}/{first_check_mk_server_site}'
 
-CHECK_MK_AGENT_VERSION = check_mk_server_config.get('version', '1.6.0p9')
+CHECK_MK_AGENT_VERSION = first_check_mk_server_config.get('version', '1.6.0p9')
 CHECK_MK_AGENT_MAJOR_VERSION = int(CHECK_MK_AGENT_VERSION.split('.')[0])
 CHECK_MK_AGENT_MINOR_VERSION = int(CHECK_MK_AGENT_VERSION.split('.')[1])
 
@@ -56,11 +59,7 @@ directories = {}
 
 downloads = {
     '/tmp/check-mk-agent_{}-1_all.deb'.format(CHECK_MK_AGENT_VERSION): {
-        'url': 'https://{server}/{site}/check_mk/agents/check-mk-agent_{version}-1_all.deb'.format(
-            server=check_mk_server.hostname,
-            site=list(check_mk_server.metadata.get('check_mk', {}).get('sites', {}).keys())[0],
-            version=CHECK_MK_AGENT_VERSION
-        ),
+        'url': f'{first_check_mk_server_base_url}/check_mk/agents/check-mk-agent_{CHECK_MK_AGENT_VERSION}-1_all.deb',
         'verifySSL': False,
         'sha256': CHECK_MK_AGENT_SHA256,
         'unless': 'dpkg -l | grep check-mk-agent | grep -q {version}'.format(version=CHECK_MK_AGENT_VERSION)
@@ -94,11 +93,7 @@ for plugin_name, plugin in node.metadata.get('check_mk', {}).get('plugins', {}).
     if plugin_type == 'check_mk_plugin':
         # Download from Monitoring Server. We assume the Plugin is available there
         downloads[f'/usr/lib/check_mk_agent/plugins/{plugin_time}/{plugin_name}'] = {
-            'url': 'https://{server}/{site}/check_mk/agents/plugins/{plugin_name}'.format(
-                server=check_mk_server.hostname,
-                site=list(check_mk_server.metadata.get('check_mk', {}).get('sites', {}).keys())[0],
-                plugin_name=plugin_name,
-            ),
+            'url': f'{first_check_mk_server_base_url}/check_mk/agents/plugins/{plugin_name}',
             'verifySSL': False,
             'sha256': plugin['sha256'],  # This is needed, and will break, if not set
             'needs': [
@@ -117,6 +112,24 @@ if node.has_bundle('xinetd'):
         'triggers': [
             'svc_systemd:xinetd.service:restart',
         ]
+    }
+
+# TODO: find out, if agent is running
+
+# register TLS with all check_mk_servers
+for check_mk_server_name in check_mk_servers:
+    check_mk_server = repo.get_node(check_mk_server_name)
+    check_mk_server_site = check_mk_servers_site.get(check_mk_server.name)
+
+    automation_password = repo.vault.password_for(f'check_mk_automation_secret_{check_mk_server.name}_{check_mk_server_site}').value
+
+    actions[f'register_with_check_mk_server_{check_mk_server.name}_{check_mk_server_site}'] = {
+        'command': f'cmk-agent-ctl register --hostname {node.hostname} --server {check_mk_server.hostname} --trust-cert --site {check_mk_server_site} --user automation --password {automation_password}',
+        'unless': f'cmk-agent-ctl status | grep {check_mk_server.hostname}/{check_mk_server_site}',
+        'cascade_skip': False,
+        'needs': [
+            'action:install_check_mk_agent',
+        ],
     }
 
 # load piggybag file from restic_server

@@ -1,3 +1,5 @@
+global node, metadata_reactor, repo
+
 defaults = {
     'check_mk': {
         'tags': {
@@ -27,7 +29,7 @@ def monitored_by_server(check_mk_server):
                 continue
 
             # we monitor this host
-            return True
+            return site
 
     # no monitoring site found
     return False
@@ -43,17 +45,18 @@ def add_check_mk_server_data_and_iptables_rules(metadata):
         if check_mk_server.partial_metadata == {}:
             return {}
 
-        if not monitored_by_server(check_mk_server):
+        monitored_site = monitored_by_server(check_mk_server)
+        if monitored_site is False:
             continue
 
-        check_mk_servers += [check_mk_server, ]
+        check_mk_servers += [(check_mk_server, monitored_site) ]
 
     check_mk_server_ips = []
     interfaces = [metadata.get('main_interface'), ]
     interfaces += metadata.get('check_mk/additional_interfaces', [])
 
     check_mk_version = None
-    for check_mk_server in check_mk_servers:
+    for check_mk_server, monitored_site in check_mk_servers:
         if check_mk_version is None:
             check_mk_version = check_mk_server.partial_metadata.get('check_mk', {}).get('version', '1.6.0p9')
         for interface, interface_config in check_mk_server.partial_metadata.get('interfaces', {}).items():
@@ -67,7 +70,8 @@ def add_check_mk_server_data_and_iptables_rules(metadata):
         'check_mk': {
             # this is only the version of the first
             'server_version': check_mk_version,
-            'servers': [x.name for x in check_mk_servers],
+            'servers': [x.name for x, _ in check_mk_servers],
+            'servers_site': {x.name: monitored_site for x, monitored_site in check_mk_servers},
             'server_ips': list(dict.fromkeys(check_mk_server_ips))
         }
     }
