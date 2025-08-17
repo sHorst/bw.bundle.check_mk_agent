@@ -10,6 +10,8 @@ supported_versions = {
     '2.0.0p13': '13497d7c2a0c4a3e1ed8bd6237cdd26cab120aa6b9b3952e7dcd4f260aca47b2',
     '2.1.0p30': 'f4badac0811e898812387fa9e5efab5e0c6ab28e79b6cc9478249bd4bb5e1e24',
     '2.2.0p4': 'c84af3b0cc249c09b818b0de15200f9ebe7db41127e8931c04f564a0495b3f0d',
+    '2.2.0p45': '8003ee5eabc24e5b88f88eeba731988b99602bb8187d8eaa6986cc9239cdd89e',
+    # '2.3.0p35': 'cfc922265ab7b1275f1ef5df9c13b8c8122b1572f4f16c6da1ba0d872fc35483',
 }
 
 check_mk_config = node.metadata.get('check_mk', {})
